@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Self
+from copy import copy
 
 
 
@@ -44,7 +44,7 @@ class PCB:
     
     
     def iterResources(self) -> tuple[int, int]:
-        for rcbIndex, numUnits in self._resources.items():
+        for rcbIndex, numUnits in list(self._resources.items()):
             yield (rcbIndex, numUnits)
     
     
@@ -88,7 +88,7 @@ class PCB:
         return self._parent
 
     def getChildren(self) -> deque:
-        return self._children
+        return copy(self._children)
 
     def getResources(self) -> dict:
         return self._resources
