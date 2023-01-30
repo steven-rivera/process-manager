@@ -8,21 +8,34 @@ class PCB:
     """
     The Process Control Block is the data structure used to represent
     processes in an OS. In this implementation a process can be in one of two 
-    states, READY or BLOCKED. The parent field stores an index into an array
-    of PCBs that correspond the parent process. The children field is a FIFO list
-    of indexes of the process's children. The resources field stores the resources the
-    the process is currently using where the key is an index into an array of RCBs and 
-    the value is the number of units of that resource that the process has. The blockedOn 
-    field stores a tuple in the form (rcbIndex, numUnits) when a process is the BLOCKED 
-    state. 
+    states, READY or BLOCKED. 
+
+    self._state: The state field represents the sate of the process.
+    
+    self._priority: The priority field stories an integer representing the
+                    process' priority within the Ready List
+    
+    self._parent: The parent field stores an index into an array
+                  of PCBs that correspond the parent process
+                  
+    self._children: The children field is a FIFO list of indexes of 
+                    the process's children
+
+    self._resources: The resources field stores the resources the
+                     the process is currently holding where the key 
+                     is an index into an array of RCBs and the value 
+                     is the number of units of that resource that 
+                     the process has
+                     
+    self._blockedOn: The blockedOn field stores a tuple in the form 
+                     (rcbIndex, numUnits) when a process is the BLOCKED state
     
     """
 
+    
     READY_STATE   = 1
     BLOCKED_STATE = 0
 
-
-    
     def __init__(self, state: int, priority: int, parent: int):
         self._state     = state
         self._priority  = priority
@@ -35,14 +48,13 @@ class PCB:
     def addChild(self, child: int) -> None:
         self._children.append(child)
 
-    
     def removeChild(self, child: int) -> None:
         self._children.remove(child)
 
     def hasChild(self, child: int) -> bool:
         return child in self._children
     
-    
+
     def iterResources(self) -> tuple[int, int]:
         for rcbIndex, numUnits in list(self._resources.items()):
             yield (rcbIndex, numUnits)
@@ -91,7 +103,7 @@ class PCB:
         return copy(self._children)
 
     def getResources(self) -> dict:
-        return self._resources
+        return copy(self._resources)
 
     def getBlockedOn(self) -> tuple[int, int]:
         return self._blockedOn
@@ -121,10 +133,18 @@ class RCB:
 
     """
     The Resource Control Block is the data structure used to keep track of 
-    resources in an OS. Inventory indicates how many units of a given resource 
-    exits. State keeps track of how many units of that resource are still 
-    available/unallocated. Waitlist is a queue of tuples (process index, units requested)
-    that keeps tracks of processes blocked on the given resource. 
+    resources in an OS. 
+    
+    self._inventory: The inventory field indicates how many units of a given resource exits. 
+                     This value is static. 
+    
+    self._state: The state field keeps track of how many units of that resource are still 
+                 available/unallocated. 
+                 
+                
+    self._waitlist: The waitlist field stores a queue of tuples (process index, units requested)
+                    that keeps tracks of processes blocked on the given resource. 
+
     """
     
     def __init__(self, inventory):
@@ -175,11 +195,16 @@ class RCB:
 
 class RL:
     """
-    This implementaion of the Ready List segregates processes into THREE levels of 
-    FIFO lists according to their priorites where priority is the index into the array
-    of FIFO lists. For example, self._levels[0] is the lowest priority level and 
-    self._levels[NUM_PRIORITY_LEVELS - 1] is the highest. Each FIFO list contains 
-    the index of the corresponding PCB in the PCB array.  
+    The Ready List is the data structure used by the schedular to decide
+    which process to run next on the CPU based on a process' priority level.
+    
+    
+    self._levels: This level field segregates processes into THREE levels of 
+                  FIFO lists according to their priorites where priority is the 
+                  index into the array of FIFO lists. For example, self._levels[0] 
+                  is the lowest priority level and self._levels[NUM_PRIORITY_LEVELS - 1] 
+                  is the highest. Each FIFO list contains the index of the 
+                  corresponding PCB in the PCB array.
 
     """
     
@@ -191,7 +216,6 @@ class RL:
         self._levels = [deque() for _ in range(RL.NUM_PRIORITY_LEVELS)]
 
    
-    
     def __iter__(self):
         def generator():
             for level in reversed(self._levels):
@@ -200,15 +224,14 @@ class RL:
         return generator()
 
     
-    
     def insert(self, pcbIndex: int, priority: int) -> None:
-        if 0 <= priority < RL.NUM_PRIORITY_LEVELS:
-            self._levels[priority].append(pcbIndex)
+        assert 0 <= priority < RL.NUM_PRIORITY_LEVELS, "INVALID PRIORITY LEVEL"    
+        self._levels[priority].append(pcbIndex)
 
 
     def remove(self, pcbIndex: int, priority: int) -> None:
-        if 0 <= priority < RL.NUM_PRIORITY_LEVELS:
-            self._levels[priority].remove(pcbIndex)
+        assert 0 <= priority < RL.NUM_PRIORITY_LEVELS, "INVALID PRIORITY LEVEL"
+        self._levels[priority].remove(pcbIndex)
 
 
     def getRunningProcess(self) -> int:

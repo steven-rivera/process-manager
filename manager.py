@@ -4,31 +4,33 @@ from structs import PCB, RCB, RL
 
 
 
-
 class Manager:
 
-    # This Managaer can support 16 processes
-    MAX_PROCESSES = 16
-
-    # Resource i conatins RESOURCES[i] units
-    RESOURCES = [1, 1, 2, 3]
-
-
     def __init__(self):
-        pass
+        # This Managaer can support 16 processes
+        self.MAX_PROCESSES = 16
+        
+        # Resource i conatins RESOURCES[i] units
+        self.RESOURCES = [1, 1, 2, 3]
 
     
+
+
     def runShell(self) -> None:
         
         # Pattern used to determine if valid command is given
         pattern = re.compile(r"^(?P<command>all|in|to|cr (?P<priorityLevel>\d+)|de (?P<pcbIndex>\d+)|r[ql] (?P<resource>\d+) (?P<numUnits>\d+))$")
-        while ( line := input().strip() ) != "":
-            
+        
+        while True: 
             try:
+                line = input().strip()
                 command = pattern.match(line)
 
+                if line == "":
+                    continue
+                
                 if command == None:
-                    print("INVALID COMMAND")
+                    print("-1", end=" ")
                     continue
                 
                 if command["command"].startswith("in"):
@@ -52,23 +54,29 @@ class Manager:
                     self.releaseResource( pcbIndex=self.RL.getRunningProcess(), 
                                           rcbIndex=int(command["resource"]), 
                                           numUnits=int(command["numUnits"]) )
-                
+            
+            except AssertionError as e:
+                print("-1", end=" ")
+
+            else:
+                self.scheduler()
+
                 if command["command"].startswith("all"):
                     print(f"PCBs: {[(pcb._children, pcb._resources) for pcb in self.PCBs if pcb != None]}")
                     print(f"RCBs: {[(rcb._state, rcb._waitList) for rcb in self.RCBs]}")
                     print(f"RL:   {self.RL._levels}")
-            
-            except AssertionError as e:
-                print(f"ERROR: {e}")
 
 
 
 
 
     def init(self) -> None:
+        # Print current session on new line
+        print()
+
         # None represents a free PCB entry
-        self.PCBs = [None] * Manager.MAX_PROCESSES
-        self.RCBs = [RCB(inventory=inventory) for inventory in Manager.RESOURCES] 
+        self.PCBs = [None] * self.MAX_PROCESSES
+        self.RCBs = [RCB(inventory=inventory) for inventory in self.RESOURCES] 
         self.RL   = RL()
   
     
@@ -78,7 +86,6 @@ class Manager:
 
         # Add process 0 to ready list
         self.RL.insert(pcbIndex=0, priority=self.PCBs[0].getPriority())
-
     
     
     
@@ -105,10 +112,6 @@ class Manager:
         # Add child into ready list
         self.RL.insert(pcbIndex=childPCBIndex, priority=priority)
         
-        print(f"process {childPCBIndex} created")
-        self.scheduler()
-
-    
     
     
 
@@ -144,25 +147,21 @@ class Manager:
 
             return numDestroyed + 1
     
-        
-
+    
         runningPCBIndex = self.RL.getRunningProcess()
 
-        assert 0 <= pcbIndex < Manager.MAX_PROCESSES, "INVALID PCB INDEX"
-        # Currently running process can only destroy iteself or one of its children
-        assert ( (runningPCBIndex == pcbIndex) or (self.PCBs[runningPCBIndex].hasChild(pcbIndex)) ), "CAN NOT DESTROY A NON CHILD PROCESS"
+        # Cannot destroy process 0
+        assert 0 < pcbIndex < self.MAX_PROCESSES, "INVALID PCB INDEX"
+        # Currently running process can only destroy iteself or one of its descendants
+        assert ( (runningPCBIndex == pcbIndex) or (self._hasDescendant(runningPCBIndex, pcbIndex)) ), "CAN NOT DESTROY A NON DESCENDANT PROCESS"
+
         
-            
         numDestroyed = recursiveDestroy(pcbIndex)
-        print(f"{numDestroyed} processes destroyed")
+        print(numDestroyed, end=" ")
 
        
 
 
-
-    
-    
-    
     def requestResource(self, pcbIndex: int, rcbIndex: int, numUnits: int) -> None:
        
         # Get the corresping rcb and pcb
@@ -170,8 +169,8 @@ class Manager:
         process = self.PCBs[pcbIndex]
 
         assert pcbIndex != 0, "PROCESS 0 CANNOT REQUEST RESOURCE"
-        assert 0 <= rcbIndex < len(Manager.RESOURCES), "INVALID RESOURCE"
-        assert process.numHeld(rcbIndex) + numUnits <= resource.unitsTotal(), "INVALID REQUEST"
+        assert 0 <= rcbIndex < len(self.RESOURCES), "INVALID RESOURCE"
+        assert process.numHeld(rcbIndex) + numUnits <= resource.unitsTotal(), "CANNOT REQUEST MORE THAN TOTAL INVENTORY"
         
         
         # Make sure there are enough units of resource to allocate
@@ -184,10 +183,8 @@ class Manager:
             process.setToBlockedState(rcbIndex, numUnits)
             self.RL.remove(pcbIndex, process.getPriority())
             resource.waitListEnqueue(pcbIndex, numUnits)
-            self.scheduler()
 
     
-
 
     
     def releaseResource(self, pcbIndex: int, rcbIndex: int, numUnits: int) -> None:
@@ -224,21 +221,19 @@ class Manager:
                 # Insert process into ready list
                 self.RL.insert(pcbIndex=waitingPcbIndex, priority=waitingPCB.getPriority())
 
-        self.scheduler()
-    
-
 
 
 
     def timeout(self) -> None:
         # Mimics preemptive scheduling
         self.RL.moveHeadToEnd()
-        self.scheduler()
+
 
 
 
     def scheduler(self) -> None:
-        print(f"process {self.RL.getRunningProcess()} running")
+        print(self.RL.getRunningProcess(), end=" ")
+
 
 
 
@@ -248,9 +243,23 @@ class Manager:
                 return index
         return -1
 
+    
+    def _hasDescendant(self, pcbIndex: int, descendant: int) -> bool:
+        
+        while True:
+            descendantPCB = self.PCBs[descendant]
+            parentIndex = descendantPCB.getParent()
+
+            if parentIndex == pcbIndex:
+                return True
+
+            if parentIndex == 0:
+                return False
+
+            descendant = parentIndex 
+
 
 
 
 if __name__ == "__main__":
     Manager().runShell()
-
