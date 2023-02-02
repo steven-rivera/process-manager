@@ -1,3 +1,4 @@
+import sys
 import re
 from structs import PCB, RCB, RL
 
@@ -7,72 +8,87 @@ from structs import PCB, RCB, RL
 class Manager:
 
     def __init__(self):
-        # This Managaer can support 16 processes
+        # This Manager can support 16 processes
         self.MAX_PROCESSES = 16
         
         # Resource i conatins RESOURCES[i] units
         self.RESOURCES = [1, 1, 2, 3]
 
+        # Keep track of how many times init is called
+        self.initCalls = 0
+
     
 
 
-    def runShell(self) -> None:
+    def runShell(self, inputFile=None) -> None:
         
         # Pattern used to determine if valid command is given
         pattern = re.compile(r"^(?P<command>all|in|to|cr (?P<priorityLevel>\d+)|de (?P<pcbIndex>\d+)|r[ql] (?P<resource>\d+) (?P<numUnits>\d+))$")
         
-        while True: 
+        
+        def runCommand(command: str) -> None:
+            if command == "": return
+            
             try:
-                line = input().strip()
-                command = pattern.match(line)
-
-                if line == "":
-                    continue
-                
-                if command == None:
+                match = pattern.match(command)
+ 
+                if match == None:
                     print("-1", end=" ")
-                    continue
+                    return
                 
-                if command["command"].startswith("in"):
+                if match["command"].startswith("in"):
                     self.init()
                 
-                if command["command"].startswith("to"):
+                if match["command"].startswith("to"):
                     self.timeout()
                 
-                if command["command"].startswith("cr"):
-                    self.createProcess( priority=int(command["priorityLevel"]) )   
+                if match["command"].startswith("cr"):
+                    self.createProcess( priority=int(match["priorityLevel"]) )   
                 
-                if command["command"].startswith("de"):
-                    self.destroyProcess( pcbIndex=int(command["pcbIndex"]) )
+                if match["command"].startswith("de"):
+                    self.destroyProcess( pcbIndex=int(match["pcbIndex"]) )
                 
-                if command["command"].startswith("rq"):
+                if match["command"].startswith("rq"):
                     self.requestResource( pcbIndex=self.RL.getRunningProcess(), 
-                                          rcbIndex=int(command["resource"]), 
-                                          numUnits=int(command["numUnits"]) )
+                                          rcbIndex=int(match["resource"]), 
+                                          numUnits=int(match["numUnits"]) )
                 
-                if command["command"].startswith("rl"):
+                if match["command"].startswith("rl"):
                     self.releaseResource( pcbIndex=self.RL.getRunningProcess(), 
-                                          rcbIndex=int(command["resource"]), 
-                                          numUnits=int(command["numUnits"]) )
+                                          rcbIndex=int(match["resource"]), 
+                                          numUnits=int(match["numUnits"]) )
             
-            except AssertionError as e:
+            except AssertionError:
                 print("-1", end=" ")
 
             else:
                 self.scheduler()
 
-                if command["command"].startswith("all"):
-                    print(f"PCBs: {[(pcb._children, pcb._resources) for pcb in self.PCBs if pcb != None]}")
-                    print(f"RCBs: {[(rcb._state, rcb._waitList) for rcb in self.RCBs]}")
-                    print(f"RL:   {self.RL._levels}")
+        
+        # Read commands from .txt file if provided
+        if inputFile != None:
+            with open(inputFile, "r") as f:
+                for command in f:
+                    runCommand(command.strip())
 
+        # Continuously read commands from stdin
+        else:
+            while True:
+                command = input().strip()
+                runCommand(command)
+                
+        
+        
+    
 
 
 
 
     def init(self) -> None:
-        # Print current session on new line
-        print()
+        self.initCalls += 1
+
+        # Print subsequent init sessions on new line
+        if self.initCalls != 1: print()
 
         # None represents a free PCB entry
         self.PCBs = [None] * self.MAX_PROCESSES
@@ -106,7 +122,7 @@ class Manager:
         # Save new PCB into free slot of PCB array
         self.PCBs[childPCBIndex] = childProcess
 
-        # Add child process index into list of children
+        # Add child process into parents' list of children
         self.PCBs[runningPCBIndex].addChild(childPCBIndex)
         
         # Add child into ready list
@@ -148,16 +164,18 @@ class Manager:
             return numDestroyed + 1
     
     
-        runningPCBIndex = self.RL.getRunningProcess()
-
         # Cannot destroy process 0
         assert 0 < pcbIndex < self.MAX_PROCESSES, "INVALID PCB INDEX"
+
+        
+        runningPCBIndex = self.RL.getRunningProcess()
+
         # Currently running process can only destroy iteself or one of its descendants
         assert ( (runningPCBIndex == pcbIndex) or (self._hasDescendant(runningPCBIndex, pcbIndex)) ), "CAN NOT DESTROY A NON DESCENDANT PROCESS"
 
         
         numDestroyed = recursiveDestroy(pcbIndex)
-        print(numDestroyed, end=" ")
+        # print(numDestroyed, end=" ")
 
        
 
@@ -261,5 +279,17 @@ class Manager:
 
 
 
+
+
 if __name__ == "__main__":
-    Manager().runShell()
+    try:
+        fileName = sys.argv[1]
+    except IndexError:
+        # If no input file is given, then shell will read commands from stdin 
+        Manager().runShell()
+    else:
+        # If input file is given, shell will read commands from file
+        Manager().runShell(inputFile=fileName)
+
+
+    
