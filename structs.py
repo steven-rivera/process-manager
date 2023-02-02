@@ -10,7 +10,7 @@ class PCB:
     processes in an OS. In this implementation a process can be in one of two 
     states, READY or BLOCKED. 
 
-    self._state: The state field represents the sate of the process.
+    self._state: The state field represents the state of the process.
     
     self._priority: The priority field stories an integer representing the
                     process' priority within the Ready List
@@ -118,7 +118,7 @@ class PCB:
     
     def numHeld(self, rcbIndex: int):
         """ 
-        Return the number of units of a given resourse 
+        Return the number of units of a given resource  
         the process holds. 
         """
         return self._resources.get(rcbIndex, 0)
@@ -135,7 +135,7 @@ class RCB:
     The Resource Control Block is the data structure used to keep track of 
     resources in an OS. 
     
-    self._inventory: The inventory field indicates how many units of a given resource exits. 
+    self._inventory: The inventory field indicates how many units of a given resource exists. 
                      This value is static. 
     
     self._state: The state field keeps track of how many units of that resource are still 
@@ -195,12 +195,12 @@ class RCB:
 
 class RL:
     """
-    The Ready List is the data structure used by the schedular to decide
+    The Ready List is the data structure used by the scheduler to decide
     which process to run next on the CPU based on a process' priority level.
     
     
     self._levels: This level field segregates processes into THREE levels of 
-                  FIFO lists according to their priorites where priority is the 
+                  FIFO lists according to their priorities where priority is the 
                   index into the array of FIFO lists. For example, self._levels[0] 
                   is the lowest priority level and self._levels[NUM_PRIORITY_LEVELS - 1] 
                   is the highest. Each FIFO list contains the index of the 
@@ -240,15 +240,17 @@ class RL:
         the highest non-empty priority level.
         """
 
-        # Must reverse to get priority levels in decending order
+        # Must reverse to get priority levels in descending order
         for level in reversed(self._levels):
             if len(level) > 0:
                 return level[0]
     
 
     def moveHeadToEnd(self) -> None:
-        # Must reverse to get priority levels in decending order
+        # Must reverse to get priority levels in descending order
         for level in reversed(self._levels):
             if len(level) > 0:
                 level.rotate(-1)
                 return 
+
+
