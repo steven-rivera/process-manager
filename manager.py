@@ -165,7 +165,10 @@ class Manager:
     
     
         # Cannot destroy process 0
-        assert 0 < pcbIndex < self.MAX_PROCESSES, "INVALID PCB INDEX"
+        assert pcbIndex != 0, "CANNOT DESTROY PROCESS 0"
+
+        # Check that pcbIndex contains a PCB
+        assert self._processExists(pcbIndex), "PROCESS DOES NOT EXISTS"
 
         
         runningPCBIndex = self.RL.getRunningProcess()
@@ -182,15 +185,17 @@ class Manager:
 
     def requestResource(self, pcbIndex: int, rcbIndex: int, numUnits: int) -> None:
        
+        assert pcbIndex != 0, "PROCESS 0 CANNOT REQUEST RESOURCE"
+        assert 0 <= rcbIndex < len(self.RESOURCES), "INVALID RESOURCE"
+        
+        
         # Get the corresping rcb and pcb
         resource = self.RCBs[rcbIndex]
         process = self.PCBs[pcbIndex]
 
-        assert pcbIndex != 0, "PROCESS 0 CANNOT REQUEST RESOURCE"
-        assert 0 <= rcbIndex < len(self.RESOURCES), "INVALID RESOURCE"
         assert process.numHeld(rcbIndex) + numUnits <= resource.unitsTotal(), "CANNOT REQUEST MORE THAN TOTAL INVENTORY"
-        
-        
+
+
         # Make sure there are enough units of resource to allocate
         if numUnits <= resource.unitsFree():
             resource.allocate(numUnits)
@@ -207,7 +212,7 @@ class Manager:
     
     def releaseResource(self, pcbIndex: int, rcbIndex: int, numUnits: int) -> None:
 
-        assert rcbIndex in [0, 1, 2, 3], "INVALID RESOURCE"
+        assert 0 <= rcbIndex < len(self.RESOURCES), "INVALID RESOURCE"
         
         # Get the corresping rcb and pcb
         resource = self.RCBs[rcbIndex]
@@ -274,9 +279,14 @@ class Manager:
             if parentIndex == 0:
                 return False
 
-            descendant = parentIndex 
+            descendant = parentIndex
 
 
+    def _processExists(self, pcbIndex) -> bool:
+        if (pcbIndex < 0) or (pcbIndex >= self.MAX_PROCESSES):
+            return False
+        
+        return self.PCBs[pcbIndex] != None
 
 
 
